@@ -1,0 +1,11 @@
+[package]
+name = "krpc_mars"
+version = "0.1.0"
+authors = ["cahu"]
+build = "build.rs"
+license = "GPL-3.0"
+
+[dependencies]
+
+[build-dependencies]
+protoc-rust = "1.5"
