@@ -33,6 +33,16 @@ impl RPCClient {
         Ok(RPCClient { sock })
     }
 
+    fn make_proc_call(&mut self, proc_call: krpc::ProcedureCall) -> Result<krpc::Response, Error> {
+        let mut calls = protobuf::RepeatedField::<krpc::ProcedureCall>::new();
+        calls.push(proc_call);
+
+        let mut request = krpc::Request::new();
+        request.set_calls(calls);
+
+        self.submit_request(&request)
+    }
+
     fn submit_request(&mut self, request: &krpc::Request) -> Result<krpc::Response, Error> {
         request.write_length_delimited_to_writer(&mut self.sock)?;
         let response = codec::read_message::<krpc::Response>(&mut self.sock)?;
