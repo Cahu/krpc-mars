@@ -1,3 +1,5 @@
+src/krpc.rs # generated
+src/main.rs # testing only
 /target
 /src/protos
 **/*.rs.bk
