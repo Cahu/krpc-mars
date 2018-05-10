@@ -86,33 +86,34 @@ impl<T, U, V, W> RPCExtractable for (T, U, V, W)
 
 
 pub trait RPCEncodable {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError>;
-    fn encode_value_to_bytes(val: &Self) -> Result<Vec<u8>, protobuf::ProtobufError> {
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError>;
+    fn encode_to_bytes(&self) -> Result<Vec<u8>, protobuf::ProtobufError> {
         let mut bytes = Vec::new();
         {
             let mut output = protobuf::CodedOutputStream::new(&mut bytes);
-            RPCEncodable::encode_value(&mut output, val)?;
+            self.encode(&mut output)?;
             output.flush()?;
         }
         Ok(bytes)
     }
 }
 
+
 impl RPCEncodable for bool {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        output.write_bool_no_tag(*val)
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        output.write_bool_no_tag(*self)
     }
 }
 
 impl RPCEncodable for f64 {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        output.write_double_no_tag(*val)
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        output.write_double_no_tag(*self)
     }
 }
 
 impl RPCEncodable for f32 {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        output.write_float_no_tag(*val)
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        output.write_float_no_tag(*self)
     }
 }
 
@@ -120,10 +121,10 @@ impl<T, U> RPCEncodable for (T, U)
     where T: RPCEncodable,
           U: RPCEncodable
 {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        let &(ref t, ref u) = val;
-        RPCEncodable::encode_value(output, t)?;
-        RPCEncodable::encode_value(output, u)?;
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        let &(ref t, ref u) = self;
+        t.encode(output)?;
+        u.encode(output)?;
         output.flush()?;
         Ok(())
     }
@@ -134,11 +135,11 @@ impl<T, U, V> RPCEncodable for (T, U, V)
           U: RPCEncodable,
           V: RPCEncodable
 {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        let &(ref t, ref u, ref v) = val;
-        RPCEncodable::encode_value(output, t)?;
-        RPCEncodable::encode_value(output, u)?;
-        RPCEncodable::encode_value(output, v)?;
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        let &(ref t, ref u, ref v) = self;
+        t.encode(output)?;
+        u.encode(output)?;
+        v.encode(output)?;
         output.flush()?;
         Ok(())
     }
@@ -150,12 +151,12 @@ impl<T, U, V, W> RPCEncodable for (T, U, V, W)
           V: RPCEncodable,
           W: RPCEncodable
 {
-    fn encode_value(output: &mut protobuf::CodedOutputStream, val: &Self) -> Result<(), protobuf::ProtobufError> {
-        let &(ref t, ref u, ref v, ref w) = val;
-        RPCEncodable::encode_value(output, t)?;
-        RPCEncodable::encode_value(output, u)?;
-        RPCEncodable::encode_value(output, v)?;
-        RPCEncodable::encode_value(output, w)?;
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        let &(ref t, ref u, ref v, ref w) = self;
+        t.encode(output)?;
+        u.encode(output)?;
+        v.encode(output)?;
+        w.encode(output)?;
         output.flush()?;
         Ok(())
     }
@@ -175,11 +176,7 @@ pub fn extract<T>(proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
         Err(RPCFailure::ProcFailure(proc_result.get_error().clone()))
     }
     else {
-        let mut input = protobuf::CodedInputStream::from_bytes(&proc_result.value);
+        let mut input = protobuf::CodedInputStream::from_bytes(proc_result.get_value());
         RPCExtractable::extract_value(&mut input).map_err(RPCFailure::ProtobufFailure)
     }
-}
-
-pub fn encode_value_to_bytes<T: RPCEncodable>(value: &T) -> Result<Vec<u8>, protobuf::ProtobufError> {
-    RPCEncodable::encode_value_to_bytes(value)
 }
