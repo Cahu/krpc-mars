@@ -1,4 +1,5 @@
 use krpc;
+use rpcfailure::RPCFailure;
 use protobuf;
 use protobuf::Message;
 
@@ -7,19 +8,6 @@ use std::hash::Hash;
 use std::collections::HashSet;
 use std::collections::HashMap;
 
-
-#[derive(Debug, Fail)]
-pub enum RPCFailure
-{
-    //#[fail(display = "Some unknown error occured")]
-    //SomeFailure,
-
-    #[fail(display = "Procedure failure: {:?}", _0)]
-    ProcFailure(krpc::Error),
-
-    #[fail(display = "Protobuf failure: {:?}", _0)]
-    ProtobufFailure(protobuf::ProtobufError),
-}
 
 pub trait RPCExtractable: Sized {
     fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError>;
