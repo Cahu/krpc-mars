@@ -1,11 +1,16 @@
+use std::io;
+
 use krpc;
 use protobuf;
 
 #[derive(Debug, Fail)]
 pub enum RPCFailure
 {
-    //#[fail(display = "Some unknown error occured")]
-    //SomeFailure,
+    #[fail(display = "Error: {}", _0)]
+    SomeFailure(String),
+
+    #[fail(display = "IO error: {:?}", _0)]
+    IoFailure(io::Error),
 
     #[fail(display = "Procedure failure: {:?}", _0)]
     ProcFailure(krpc::Error),
