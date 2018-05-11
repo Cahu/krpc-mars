@@ -14,6 +14,7 @@ use std::net::TcpStream;
 
 pub struct RPCClient {
     sock: TcpStream,
+    _client_id: Vec<u8>,
 }
 
 impl RPCClient {
@@ -31,7 +32,7 @@ impl RPCClient {
 
         match response.status {
             krpc::ConnectionResponse_Status::OK => {
-                Ok(RPCClient { sock })
+                Ok(RPCClient { sock, _client_id: response.client_identifier })
             }
             s => {
                 Err(RPCFailure::SomeFailure(format!("{:?} - {}", s, response.message)))
