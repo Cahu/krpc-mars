@@ -235,9 +235,7 @@ impl<T> RPCEncodable for Vec<T>
 
         let mut l = krpc::List::new();
         l.set_items(v);
-
         l.write_to(output)?;
-        output.flush()?;
 
         Ok(())
     }
@@ -251,7 +249,6 @@ impl<T, U> RPCEncodable for (T, U)
         let &(ref t, ref u) = self;
         t.encode(output)?;
         u.encode(output)?;
-        output.flush()?;
         Ok(())
     }
 }
@@ -266,7 +263,6 @@ impl<T, U, V> RPCEncodable for (T, U, V)
         t.encode(output)?;
         u.encode(output)?;
         v.encode(output)?;
-        output.flush()?;
         Ok(())
     }
 }
@@ -283,7 +279,6 @@ impl<T, U, V, W> RPCEncodable for (T, U, V, W)
         u.encode(output)?;
         v.encode(output)?;
         w.encode(output)?;
-        output.flush()?;
         Ok(())
     }
 }
