@@ -17,13 +17,12 @@ use std::net::ToSocketAddrs;
 
 
 struct RPCClient_ {
-    sock: TcpStream,
-    _client_id: Vec<u8>,
+    sock: Mutex<TcpStream>, //We must ensure that no two write happen concurrently
+    client_id: Vec<u8>,
 }
 
-// We must ensure that no two write happen concurrently. Thus we use an Arc<Mutex<>>
 #[derive(Clone)]
-pub struct RPCClient (Arc<Mutex<RPCClient_>>);
+pub struct RPCClient (Arc<RPCClient_>);
 
 
 impl RPCClient {
@@ -41,9 +40,12 @@ impl RPCClient {
 
         match response.status {
             krpc::ConnectionResponse_Status::OK => {
-                Ok(RPCClient(Arc::new(Mutex::new(
-                    RPCClient_ { sock, _client_id: response.client_identifier })
-                )))
+                Ok(RPCClient(Arc::new(
+                    RPCClient_ {
+                        sock: Mutex::new(sock),
+                        client_id: response.client_identifier
+                    })
+                ))
             }
             s => {
                 Err(RPCFailure::SomeFailure(format!("{:?} - {}", s, response.message)))
@@ -62,9 +64,9 @@ impl RPCClient {
     }
 
     pub fn submit_request(&self, request: &krpc::Request) -> Result<krpc::Response, RPCFailure> {
-        if let Ok(ref mut client) = self.0.lock() {
-            request.write_length_delimited_to_writer(&mut client.sock).map_err(RPCFailure::ProtobufFailure)?;
-            codec::read_message::<krpc::Response>(&mut client.sock).map_err(RPCFailure::ProtobufFailure)
+        if let Ok(mut sock_guard) = self.0.sock.lock() {
+            request.write_length_delimited_to_writer(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)?;
+            codec::read_message::<krpc::Response>(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)
         }
         else {
             Err(RPCFailure::SomeFailure(String::from("Poinsoned mutex")))
