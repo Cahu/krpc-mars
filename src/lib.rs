@@ -13,6 +13,7 @@ use rpcfailure::RPCFailure;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::net::TcpStream;
+use std::net::ToSocketAddrs;
 
 
 struct RPCClient_ {
@@ -27,7 +28,7 @@ pub struct RPCClient (Arc<Mutex<RPCClient_>>);
 
 impl RPCClient {
 
-    pub fn connect(addr: &str) -> Result<Self, RPCFailure> {
+    pub fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self, RPCFailure> {
         let mut sock = TcpStream::connect(addr).map_err(RPCFailure::IoFailure)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
