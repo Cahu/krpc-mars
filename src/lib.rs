@@ -28,12 +28,12 @@ pub struct RPCClient (Arc<Mutex<RPCClient_>>);
 
 impl RPCClient {
 
-    pub fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self, RPCFailure> {
+    pub fn connect<A: ToSocketAddrs>(client_name: &str, addr: A) -> Result<Self, RPCFailure> {
         let mut sock = TcpStream::connect(addr).map_err(RPCFailure::IoFailure)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
         conn_req.set_field_type(krpc::ConnectionRequest_Type::RPC);
-        conn_req.set_client_name(String::from("Rigel"));
+        conn_req.set_client_name(client_name.to_string());
 
         conn_req.write_length_delimited_to_writer(&mut sock).map_err(RPCFailure::ProtobufFailure)?;
 
