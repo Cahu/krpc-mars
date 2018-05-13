@@ -10,59 +10,59 @@ use std::collections::HashMap;
 
 
 pub trait RPCExtractable: Sized {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError>;
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError>;
 }
 
 impl RPCExtractable for bool {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_bool()
     }
 }
 
 impl RPCExtractable for () {
-    fn extract_value(_input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, _input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         Ok(())
     }
 }
 
 impl RPCExtractable for f64 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_double()
     }
 }
 
 impl RPCExtractable for f32 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_float()
     }
 }
 
 impl RPCExtractable for u64 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_uint64()
     }
 }
 
 impl RPCExtractable for u32 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_uint32()
     }
 }
 
 impl RPCExtractable for i64 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_sint64()
     }
 }
 
 impl RPCExtractable for i32 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_sint32()
     }
 }
 
 impl RPCExtractable for String {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         input.read_string()
     }
 }
@@ -70,14 +70,14 @@ impl RPCExtractable for String {
 impl<T> RPCExtractable for Vec<T>
     where T: RPCExtractable
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         let mut m = krpc::List::new();
         m.merge_from(input)?;
 
         let mut v = Vec::with_capacity(m.items.len());
         for item in &m.items {
             let mut i = protobuf::CodedInputStream::from_bytes(&item);
-            v.push(RPCExtractable::extract_value(&mut i)?);
+            v.push(RPCExtractable::extract_value(client, &mut i)?);
         }
 
         Ok(v)
@@ -87,14 +87,14 @@ impl<T> RPCExtractable for Vec<T>
 impl<T> RPCExtractable for HashSet<T>
     where T: RPCExtractable + Hash + Eq,
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         let mut m = krpc::Set::new();
         m.merge_from(input)?;
 
         let mut s = HashSet::with_capacity(m.items.len());
         for item in &m.items {
             let mut i = protobuf::CodedInputStream::from_bytes(&item);
-            s.insert(RPCExtractable::extract_value(&mut i)?);
+            s.insert(RPCExtractable::extract_value(client, &mut i)?);
         }
 
         Ok(s)
@@ -105,7 +105,7 @@ impl<T, U> RPCExtractable for HashMap<T, U>
     where T: RPCExtractable + Hash + Eq,
           U: RPCExtractable
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
         let mut m = krpc::Dictionary::new();
         m.merge_from(input)?;
 
@@ -113,8 +113,8 @@ impl<T, U> RPCExtractable for HashMap<T, U>
         for entry in &m.entries {
             let mut i_k = protobuf::CodedInputStream::from_bytes(&entry.key);
             let mut i_v = protobuf::CodedInputStream::from_bytes(&entry.value);
-            let key = RPCExtractable::extract_value(&mut i_k)?;
-            let val = RPCExtractable::extract_value(&mut i_v)?;
+            let key = RPCExtractable::extract_value(client, &mut i_k)?;
+            let val = RPCExtractable::extract_value(client, &mut i_v)?;
             h.insert(key, val);
         }
 
@@ -126,9 +126,9 @@ impl<T, U> RPCExtractable for (T, U)
     where T: RPCExtractable,
           U: RPCExtractable
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let t = RPCExtractable::extract_value(client, input)?;
+        let u = RPCExtractable::extract_value(client, input)?;
         Ok((t, u))
     }
 }
@@ -138,10 +138,10 @@ impl<T, U, V> RPCExtractable for (T, U, V)
           U: RPCExtractable,
           V: RPCExtractable
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
-        let v = RPCExtractable::extract_value(input)?;
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let t = RPCExtractable::extract_value(client, input)?;
+        let u = RPCExtractable::extract_value(client, input)?;
+        let v = RPCExtractable::extract_value(client, input)?;
         Ok((t, u, v))
     }
 }
@@ -152,11 +152,11 @@ impl<T, U, V, W> RPCExtractable for (T, U, V, W)
           V: RPCExtractable,
           W: RPCExtractable
 {
-    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
-        let v = RPCExtractable::extract_value(input)?;
-        let w = RPCExtractable::extract_value(input)?;
+    fn extract_value(client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let t = RPCExtractable::extract_value(client, input)?;
+        let u = RPCExtractable::extract_value(client, input)?;
+        let v = RPCExtractable::extract_value(client, input)?;
+        let w = RPCExtractable::extract_value(client, input)?;
         Ok((t, u, v, w))
     }
 }
@@ -295,7 +295,19 @@ pub fn read_message<M>(sock: &mut Read) -> Result<M, protobuf::ProtobufError>
     protobuf::parse_length_delimited_from::<M>(&mut input_stream)
 }
 
-pub fn extract<T>(proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
+
+pub fn extract_single_result<T>(client: &super::RPCClient, response: &krpc::Response) -> Result<T, RPCFailure>
+    where T: RPCExtractable
+{
+    if response.has_error() {
+        Err(RPCFailure::ProcFailure(response.get_error().clone()))
+    }
+    else {
+        extract_result(client, &response.results[0])
+    }
+}
+
+pub fn extract_result<T>(client: &super::RPCClient, proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
     where T: RPCExtractable
 {
     if proc_result.has_error() {
@@ -303,6 +315,6 @@ pub fn extract<T>(proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
     }
     else {
         let mut input = protobuf::CodedInputStream::from_bytes(proc_result.get_value());
-        RPCExtractable::extract_value(&mut input).map_err(RPCFailure::ProtobufFailure)
+        RPCExtractable::extract_value(client, &mut input).map_err(RPCFailure::ProtobufFailure)
     }
 }
