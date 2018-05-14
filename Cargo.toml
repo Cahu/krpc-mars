@@ -7,7 +7,7 @@ license = "GPL-3.0"
 
 [dependencies]
 failure = "0.1"
-protobuf = "1.5"
+protobuf = "1.6"
 
 [build-dependencies]
-protoc-rust = "1.5"
+protoc-rust = "1.6"

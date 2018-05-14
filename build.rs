@@ -7,5 +7,8 @@ fn main() {
         out_dir:   "src/",
         input:     &["protos/krpc.proto"],
         includes:  &[],
+        customize: protoc_rust::Customize {
+            ..Default::default()
+        },
     }).expect("protoc");
 }
