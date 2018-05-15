@@ -101,8 +101,7 @@ fn main() {
 
 	// Say something nice
 	let ui = ui::UI::new(client.clone());
-	ui.message("It works!!".to_string(), 5f32, ui::MessagePosition::BottomCenter)
-		.expect("Wait ... in fact it doesn't work ...");
+	ui.message("It works!!".to_string(), 5f32, ui::MessagePosition::BottomCenter).unwrap();
 
 	// Tour of the solar system ...
 	let space_center = space_center::SpaceCenter::new(client.clone());
