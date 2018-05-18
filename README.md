@@ -15,9 +15,10 @@ First, create your project
 
 You will need the `.json` service files bundled with the kRPC mod and the
 [krpc-mars-terraformer] library to generate rust code from them. These files are
-usually called `KRPC.<some service>.json`. For instance, the most important one
-is `KRPC.SpaceCenter.json` and contains the definition of the main RPCs you
-will want to use. Put these files in some directory within your project.
+usually called `KRPC.<some service>.json` (there is also a file called
+`KRPC.json`, ignore it). For instance, the most important one is
+`KRPC.SpaceCenter.json` and contains the definition of the main RPCs you will
+want to use. Put these files in some directory within your project.
 
 [krpc-mars-terraformer]: https://github.com/Cahu/krpc-mars-terraformer
 
