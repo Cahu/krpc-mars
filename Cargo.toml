@@ -1,6 +1,6 @@
 [package]
 name = "krpc_mars"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["cahu"]
 build = "build.rs"
 license = "GPL-3.0"
