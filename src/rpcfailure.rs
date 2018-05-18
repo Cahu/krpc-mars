@@ -15,6 +15,9 @@ pub enum RPCFailure
     #[fail(display = "Procedure failure: {:?}", _0)]
     ProcFailure(krpc::Error),
 
+    #[fail(display = "No such stream")]
+    NoSuchStream,
+
     #[fail(display = "Protobuf failure: {:?}", _0)]
     ProtobufFailure(protobuf::ProtobufError),
 }

@@ -67,6 +67,16 @@ impl RPCExtractable for String {
     }
 }
 
+impl RPCExtractable for krpc::Stream
+{
+    fn extract_value(_client: &super::RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let mut stream = krpc::Stream::new();
+        stream.merge_from(input)?;
+        Ok(stream)
+    }
+}
+
+
 impl<T> RPCExtractable for Vec<T>
     where T: RPCExtractable
 {
