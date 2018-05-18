@@ -35,7 +35,7 @@ files before building our project :
 ```rust
 // FILE: build.rs
 extern crate glob;
-extern crate krpc_mars_terraform;
+extern crate krpc_mars_terraformer;
 
 fn main() {
 	// Tell cargo to re-run this script only when json files in services/
@@ -45,7 +45,7 @@ fn main() {
 		println!("cargo:rerun-if-changed={}", path.display());
 	}
 
-	krpc_mars_terraform::run("services/", "src/")
+	krpc_mars_terraformer::run("services/", "src/")
 		.expect("Could not terraform Mars :(");
 }
 ```
@@ -63,7 +63,7 @@ krpc_mars = { git = ... }
 
 [build-dependencies]
 glob = "*"
-krpc_mars_terraform = { git = ... }
+krpc_mars_terraformer = { git = ... }
 ```
 
 The last step is to list all generated services in `src/lib.rs` :
