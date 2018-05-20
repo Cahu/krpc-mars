@@ -70,7 +70,7 @@ The last step is to list all generated services in `src/lib.rs` :
 
 ```rust
 // FILE: lib.rs
-pub extern crate krpc_mars; // don't forget this
+extern crate krpc_mars; // don't forget this
 pub mod drawing;
 pub mod infernal_robotics;
 pub mod kerbal_alarm_clock;
@@ -87,32 +87,85 @@ Let's have some documentation too !
 
     $ cargo doc --open
 
-Everything is ready. Here is a `main.rs` to get you started :
+
+## Examples
+
+### Simple RPC
+
+Here is a basic example using RPCs from the SpaceCenter service:
 
 ```rust
-// FILE: main.rs
 extern crate betterjeb;
 use betterjeb::*;
 
-use std::thread;
-use std::time::Duration;
+extern crate krpc_mars;
 
-fn main() {
-	let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000").unwrap();
+extern crate failure;
 
-	// Say something nice
-	let ui = ui::UI::new(client.clone());
-	ui.message("It works!!".to_string(), 5f32, ui::MessagePosition::BottomCenter).unwrap();
+fn main() -> Result<(), failure::Error> {
+    let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
 
-	// Tour of the solar system ...
-	let space_center = space_center::SpaceCenter::new(client.clone());
-	let bodies = space_center.get_bodies().unwrap();
-	let camera = space_center.get_camera().unwrap();
-	camera.set_mode(space_center::CameraMode::Map).unwrap();
-	for (_body_name, body_object) in &bodies {
-		camera.set_focussed_body(body_object).unwrap();
-		thread::sleep(Duration::from_millis(5000));
-	}
-	camera.set_mode(space_center::CameraMode::Automatic).unwrap();
+    let vessel = client.mk_call(&space_center::get_active_vessel())?;
+    println!("Active vessel: {:?}", vessel);
+
+    let crew = client.mk_call(&vessel.get_crew())?;
+    println!("Crew: {:?}", crew);
+
+    Ok(())
 }
 ```
+
+When you run this program you should see something like this:
+
+```
+Active vessel: Vessel(1)
+Crew: [CrewMember(2)]
+```
+
+These numbers are ids created by the kRPC server.
+
+### Batches
+
+You can also group RPCs in batches, meaning multiple calls will be grouped in a
+single packet. For instance:
+
+```rust
+extern crate betterjeb;
+use betterjeb::*;
+
+#[macro_use]
+extern crate krpc_mars;
+
+extern crate failure;
+
+fn main() -> Result<(), failure::Error> {
+    let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+
+    let (vessel, time) = batch_call!(&client, (
+        &space_center::get_active_vessel(),
+        &space_center::get_ut(),
+    ))?;
+
+    let time = time?;
+    let vessel = vessel?;
+
+    println!("Current time: {}, Vessel: {:?}", time, vessel);
+
+    let (crew, _, _) = batch_call!(&client, (
+        &vessel.get_crew(),
+        &vessel.set_type(space_center::VesselType::Probe),
+        &ui::message("Vessel type set to 'Probe'!".to_string(), 5f32, ui::MessagePosition::TopCenter),
+    ))?;
+
+    println!("Crew: {:?}", crew?);
+
+    Ok(())
+}
+```
+
+If you don't want to unwrap all return values manually, then you can use the
+`batch_call_unwrap!` macro instead of `batch_call!`.
+
+### Using streams
+
+WIP
