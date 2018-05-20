@@ -27,7 +27,7 @@ pub struct RPCClient (Arc<RPCClient_>);
 
 
 #[derive(Debug)]
-pub struct StreamClient_ {
+struct StreamClient_ {
     sock: Mutex<TcpStream>,
 }
 
