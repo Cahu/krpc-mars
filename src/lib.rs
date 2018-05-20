@@ -1,5 +1,5 @@
 #[macro_use]
-pub extern crate failure;
+extern crate failure;
 
 pub extern crate protobuf;
 use protobuf::Message;
@@ -7,8 +7,7 @@ use protobuf::Message;
 pub mod krpc;
 pub mod codec;
 pub mod rpcfailure;
-
-use rpcfailure::RPCFailure;
+pub use rpcfailure::RPCFailure;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -38,15 +37,89 @@ pub struct StreamClient (Arc<StreamClient_>);
 
 type StreamID = u64;
 
+#[derive(Clone)]
+pub struct RPCRequest {
+    calls: protobuf::RepeatedField<krpc::ProcedureCall>,
+}
+
+#[derive(Clone)]
+pub struct CallHandle<T> {
+    proc_call: krpc::ProcedureCall,
+    _phantom: PhantomData<T>,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct StreamHandle<T> {
     stream_id: StreamID,
-    parent_client: RPCClient,
     _phantom: PhantomData<T>,
 }
 
 #[derive(Debug)]
 pub struct StreamUpdate {
     updates: HashMap<StreamID, krpc::ProcedureResult>,
+}
+
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! batch_call_common {
+    ($process_result:expr, $client:expr, ( $( $call:expr ),+ )) => {{
+        let mut request = $crate::RPCRequest::new();
+        $( request.add_call($call); )+
+        match $client.submit_request(request) {
+            Err(e) => {
+                Err(e)
+            }
+            Ok(ref mut response) if response.has_error() => {
+                Err($crate::RPCFailure::RequestFailure(response.take_error()))
+            }
+            Ok(ref response) => {
+                let mut _i = 0;
+                Ok(( $({
+                        let result = $call.get_result(&response.results[_i]); _i += 1;
+                        $process_result(result)
+                },)+ ))
+            }
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! batch_call {
+    ($client:expr, ( $( $call:expr ),+ )) => {
+        batch_call_common!(|result| { result }, $client, ( $( $call ),+ ))
+    };
+    ($client:expr, ( $( $call:expr ),+ , )) => /* retry without last ';' */ {
+        batch_call!($client, ( $( $call ),+ ))
+    };
+}
+
+
+#[macro_export]
+macro_rules! batch_call_unwrap {
+    ($client:expr, ( $( $call:expr ),+ )) => {{
+        batch_call_common!(|result: Result<_, _>| { result.unwrap() }, $client, ( $( $call ),+ ))
+    }};
+    ($client:expr, ( $( $call:expr ),+ , )) => /* retry without last ';' */ {
+        batch_call_unwrap!($client, ( $( $call ),+ ))
+    };
+}
+
+
+pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> Result<CallHandle<StreamHandle<T>>, RPCFailure> {
+    let mut arg = krpc::Argument::new();
+    arg.set_position(0);
+    arg.set_value(call.get_call().write_to_bytes().map_err(RPCFailure::ProtobufFailure)?);
+
+    let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+    arguments.push(arg);
+
+    let mut proc_call = krpc::ProcedureCall::new();
+    proc_call.set_service(String::from("KRPC"));
+    proc_call.set_procedure(String::from("AddStream"));
+    proc_call.set_arguments(arguments);
+
+    Ok(CallHandle::<StreamHandle<T>>::new(proc_call))
 }
 
 
@@ -78,36 +151,15 @@ impl RPCClient {
         }
     }
 
-    pub fn make_proc_call(&self, proc_call: krpc::ProcedureCall) -> Result<krpc::Response, RPCFailure> {
-        let mut calls = protobuf::RepeatedField::<krpc::ProcedureCall>::new();
-        calls.push(proc_call);
-
-        let mut request = krpc::Request::new();
-        request.set_calls(calls);
-
-        self.submit_request(&request)
+    pub fn mk_call<T: codec::RPCExtractable>(&self, call: &CallHandle<T>) -> Result<T, RPCFailure> {
+        let (result,) = batch_call!(self, ( call ))?;
+        result
     }
 
-    pub fn make_stream_req(&self, stream_proc_call: krpc::ProcedureCall) -> Result<krpc::Response, RPCFailure> {
-        let mut proc_call = krpc::ProcedureCall::new();
-        proc_call.set_service(String::from("KRPC"));
-        proc_call.set_procedure(String::from("AddStream"));
-
-        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
-
-        let mut arg = krpc::Argument::new();
-        arg.set_position(0);
-        arg.set_value(stream_proc_call.write_to_bytes().map_err(RPCFailure::ProtobufFailure)?);
-        arguments.push(arg);
-
-        proc_call.set_arguments(arguments);
-
-        self.make_proc_call(proc_call)
-    }
-
-    pub fn submit_request(&self, request: &krpc::Request) -> Result<krpc::Response, RPCFailure> {
+    pub fn submit_request(&self, request: RPCRequest) -> Result<krpc::Response, RPCFailure> {
+        let raw_request = request.build();
         if let Ok(mut sock_guard) = self.0.sock.lock() {
-            request.write_length_delimited_to_writer(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)?;
+            raw_request.write_length_delimited_to_writer(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)?;
             codec::read_message::<krpc::Response>(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)
         }
         else {
@@ -158,9 +210,43 @@ impl StreamClient {
 }
 
 
+impl RPCRequest {
+    pub fn new() -> Self {
+        RPCRequest { calls: protobuf::RepeatedField::<krpc::ProcedureCall>::new() }
+    }
+
+    pub fn add_call<T: codec::RPCExtractable>(&mut self, handle: &CallHandle<T>) {
+        self.calls.push(handle.get_call().clone())
+    }
+
+    fn build(self) -> krpc::Request {
+        let mut req = krpc::Request::new();
+        req.set_calls(self.calls);
+        req
+    }
+}
+
+
+impl<T> CallHandle<T>
+    where T: codec::RPCExtractable
+{
+    pub fn new(proc_call: krpc::ProcedureCall) -> Self {
+        CallHandle { proc_call, _phantom: PhantomData }
+    }
+
+    pub fn get_result(&self, result: &krpc::ProcedureResult) -> Result<T, RPCFailure> {
+        codec::extract_result(result)
+    }
+
+    fn get_call(&self) -> &krpc::ProcedureCall {
+        &self.proc_call
+    }
+}
+
+
 impl<T> StreamHandle<T> {
-    pub fn new(stream_id: StreamID, parent_client: RPCClient) -> Self {
-        StreamHandle { stream_id, parent_client, _phantom: PhantomData }
+    pub fn new(stream_id: StreamID) -> Self {
+        StreamHandle { stream_id, _phantom: PhantomData }
     }
 }
 
@@ -170,6 +256,6 @@ impl StreamUpdate {
         where T: codec::RPCExtractable
     {
         let result = self.updates.get(&handle.stream_id).ok_or(RPCFailure::NoSuchStream)?;
-        codec::extract_result(&handle.parent_client, &result)
+        codec::extract_result(&result)
     }
 }
