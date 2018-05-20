@@ -303,17 +303,6 @@ pub fn read_message<M>(sock: &mut Read) -> Result<M, protobuf::ProtobufError>
 }
 
 
-pub fn extract_single_result<T>(client: &super::RPCClient, response: &krpc::Response) -> Result<T, RPCFailure>
-    where T: RPCExtractable
-{
-    if response.has_error() {
-        Err(RPCFailure::ProcFailure(response.get_error().clone()))
-    }
-    else {
-        extract_result(client, &response.results[0])
-    }
-}
-
 pub fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
     where T: RPCExtractable
 {
