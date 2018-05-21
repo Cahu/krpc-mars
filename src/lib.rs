@@ -248,6 +248,24 @@ impl<T> StreamHandle<T> {
     pub fn new(stream_id: StreamID) -> Self {
         StreamHandle { stream_id, _phantom: PhantomData }
     }
+
+    pub fn remove(self) -> CallHandle<()> {
+        use codec::RPCEncodable;
+
+        let mut arg = krpc::Argument::new();
+        arg.set_position(0);
+        arg.set_value(self.stream_id.encode_to_bytes().unwrap());
+
+        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+        arguments.push(arg);
+
+        let mut proc_call = krpc::ProcedureCall::new();
+        proc_call.set_service(String::from("KRPC"));
+        proc_call.set_procedure(String::from("RemoveStream"));
+        proc_call.set_arguments(arguments);
+
+        CallHandle::<()>::new(proc_call)
+    }
 }
 
 
