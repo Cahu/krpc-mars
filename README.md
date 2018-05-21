@@ -130,37 +130,25 @@ You can also group RPCs in batches, meaning multiple calls will be grouped in a
 single packet. For instance:
 
 ```rust
-extern crate betterjeb;
-use betterjeb::*;
+let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
 
-#[macro_use]
-extern crate krpc_mars;
+let (vessel, time) = batch_call!(&client, (
+    &space_center::get_active_vessel(),
+    &space_center::get_ut(),
+))?;
 
-extern crate failure;
+let time = time?;
+let vessel = vessel?;
 
-fn main() -> Result<(), failure::Error> {
-    let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+println!("Current time: {}, Vessel: {:?}", time, vessel);
 
-    let (vessel, time) = batch_call!(&client, (
-        &space_center::get_active_vessel(),
-        &space_center::get_ut(),
-    ))?;
+let (crew, _, _) = batch_call!(&client, (
+    &vessel.get_crew(),
+    &vessel.set_type(space_center::VesselType::Probe),
+    &ui::message("Vessel type set to 'Probe'!".to_string(), 5f32, ui::MessagePosition::TopCenter),
+))?;
 
-    let time = time?;
-    let vessel = vessel?;
-
-    println!("Current time: {}, Vessel: {:?}", time, vessel);
-
-    let (crew, _, _) = batch_call!(&client, (
-        &vessel.get_crew(),
-        &vessel.set_type(space_center::VesselType::Probe),
-        &ui::message("Vessel type set to 'Probe'!".to_string(), 5f32, ui::MessagePosition::TopCenter),
-    ))?;
-
-    println!("Crew: {:?}", crew?);
-
-    Ok(())
-}
+println!("Crew: {:?}", crew?);
 ```
 
 If you don't want to unwrap all return values manually, then you can use the
