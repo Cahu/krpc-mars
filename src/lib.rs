@@ -191,7 +191,7 @@ impl StreamClient {
         }
     }
 
-    pub fn recv_update(&mut self) -> Result<StreamUpdate, RPCFailure> {
+    pub fn recv_update(&self) -> Result<StreamUpdate, RPCFailure> {
         let updates;
         if let Ok(mut sock_guard) = self.0.sock.lock() {
             updates = codec::read_message::<krpc::StreamUpdate>(&mut *sock_guard).map_err(RPCFailure::ProtobufFailure)?;
