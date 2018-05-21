@@ -106,10 +106,10 @@ macro_rules! batch_call_unwrap {
 }
 
 
-pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> Result<CallHandle<StreamHandle<T>>, RPCFailure> {
+pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> CallHandle<StreamHandle<T>> {
     let mut arg = krpc::Argument::new();
     arg.set_position(0);
-    arg.set_value(call.get_call().write_to_bytes().map_err(RPCFailure::ProtobufFailure)?);
+    arg.set_value(call.get_call().write_to_bytes().unwrap());
 
     let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
     arguments.push(arg);
@@ -119,7 +119,7 @@ pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> Result<CallH
     proc_call.set_procedure(String::from("AddStream"));
     proc_call.set_arguments(arguments);
 
-    Ok(CallHandle::<StreamHandle<T>>::new(proc_call))
+    CallHandle::<StreamHandle<T>>::new(proc_call)
 }
 
 
