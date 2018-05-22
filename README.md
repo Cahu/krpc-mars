@@ -193,3 +193,10 @@ loop {
     println!("ut: {}", ut_result);
 }
 ```
+
+To remove a stream, use the `remove()` method of the stream handle which will
+generate the appropriate request:
+
+```
+client.mk_call(&ut_stream_handle.remove())?;
+```
