@@ -1,5 +1,6 @@
 use krpc;
-use rpcfailure::RPCFailure;
+use error::Error;
+
 use protobuf;
 use protobuf::Message;
 
@@ -303,14 +304,14 @@ pub fn read_message<M>(sock: &mut Read) -> Result<M, protobuf::ProtobufError>
 }
 
 
-pub fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, RPCFailure>
+pub fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, Error>
     where T: RPCExtractable
 {
     if proc_result.has_error() {
-        Err(RPCFailure::ProcFailure(proc_result.get_error().clone()))
+        Err(Error::Procedure(proc_result.get_error().clone()))
     }
     else {
         let mut input = protobuf::CodedInputStream::from_bytes(proc_result.get_value());
-        RPCExtractable::extract_value(&mut input).map_err(RPCFailure::ProtobufFailure)
+        RPCExtractable::extract_value(&mut input).map_err(Error::Protobuf)
     }
 }
