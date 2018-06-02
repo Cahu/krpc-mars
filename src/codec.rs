@@ -139,8 +139,10 @@ impl<T, U> RPCExtractable for (T, U)
           U: RPCExtractable
 {
     fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
+        let mut l = krpc::Tuple::new();
+        l.merge_from(input)?;
+        let t = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[0]))?;
+        let u = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[1]))?;
         Ok((t, u))
     }
 }
@@ -151,9 +153,11 @@ impl<T, U, V> RPCExtractable for (T, U, V)
           V: RPCExtractable
 {
     fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
-        let v = RPCExtractable::extract_value(input)?;
+        let mut l = krpc::Tuple::new();
+        l.merge_from(input)?;
+        let t = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[0]))?;
+        let u = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[1]))?;
+        let v = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[2]))?;
         Ok((t, u, v))
     }
 }
@@ -165,10 +169,12 @@ impl<T, U, V, W> RPCExtractable for (T, U, V, W)
           W: RPCExtractable
 {
     fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let t = RPCExtractable::extract_value(input)?;
-        let u = RPCExtractable::extract_value(input)?;
-        let v = RPCExtractable::extract_value(input)?;
-        let w = RPCExtractable::extract_value(input)?;
+        let mut l = krpc::Tuple::new();
+        l.merge_from(input)?;
+        let t = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[0]))?;
+        let u = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[1]))?;
+        let v = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[2]))?;
+        let w = RPCExtractable::extract_value(&mut protobuf::CodedInputStream::from_bytes(&l.items[3]))?;
         Ok((t, u, v, w))
     }
 }
