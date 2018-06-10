@@ -237,6 +237,10 @@ impl<T> CallHandle<T>
     pub fn new(proc_call: krpc::ProcedureCall) -> Self {
         CallHandle { proc_call, _phantom: PhantomData }
     }
+    
+    pub fn to_stream(&self) -> CallHandle<StreamHandle<T>> {
+        mk_stream(self)
+    }
 
     pub fn get_result(&self, result: &krpc::ProcedureResult) -> Result<T> {
         codec::extract_result(result)
