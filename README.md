@@ -156,7 +156,7 @@ If you don't want to unwrap all return values manually, then you can use the
 
 ### Using streams
 
-Streams are easy to setup, just use `mk_stream()` on the regular function. You
+Streams are easy to setup, just use `to_stream()` on the regular function. You
 will get a `StreamHandle` which you can use later to retrieve the result of
 this particular RPC from a `StreamUpdate` you obtained by calling
 `recv_update()` on the stream client.
@@ -165,7 +165,7 @@ this particular RPC from a `StreamUpdate` you obtained by calling
 let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
 let stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")?;
 
-let ut_stream_handle = client.mk_call(&krpc_mars::mk_stream(&space_center::get_ut()))?;
+let ut_stream_handle = client.mk_call(&space_center::get_ut().to_stream())?;
 
 loop {
     let update = stream_client.recv_update()?;
@@ -182,7 +182,7 @@ let stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")
 
 let (vessel, ut_stream_handle) = batch_call_unwrap!(&client, (
     &space_center::get_active_vessel(),
-    &krpc_mars::mk_stream(&space_center::get_ut()),
+    &space_center::get_ut().to_stream(),
 ))?;
 
 println!("Current vessel: {:?}", vessel);
