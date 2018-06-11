@@ -15,12 +15,13 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 
+#[derive(Debug)]
 struct RPCClient_ {
     sock: Mutex<TcpStream>, //We must ensure that no two write happen concurrently
     client_id: Vec<u8>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RPCClient (Arc<RPCClient_>);
 
 
