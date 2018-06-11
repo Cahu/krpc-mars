@@ -4,8 +4,8 @@ use protobuf::Message;
 pub mod krpc;
 pub mod codec;
 pub mod error;
-pub use error::Error;
-pub use error::Result;
+use error::Error;
+use error::Result;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -79,7 +79,7 @@ macro_rules! batch_call_common {
                 Err(e)
             }
             Ok(ref mut response) if response.has_error() => {
-                Err($crate::Error::Request(response.take_error()))
+                Err($crate::error::Error::Request(response.take_error()))
             }
             Ok(ref response) => {
                 let mut _i = 0;
