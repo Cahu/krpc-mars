@@ -21,6 +21,7 @@ struct RPCClient_ {
     client_id: Vec<u8>,
 }
 
+/// A client to a RPC server.
 #[derive(Clone, Debug)]
 pub struct RPCClient (Arc<RPCClient_>);
 
@@ -30,29 +31,37 @@ struct StreamClient_ {
     sock: Mutex<TcpStream>,
 }
 
+/// A client to a Stream server.
 #[derive(Clone)]
 pub struct StreamClient (Arc<StreamClient_>);
 
 
 type StreamID = u64;
 
+#[doc(hidden)]
+/// Represents a request that can be submitted to the RPCServer. Library users should not have to
+/// use this object directly.
 #[derive(Clone)]
 pub struct RPCRequest {
     calls: protobuf::RepeatedField<krpc::ProcedureCall>,
 }
 
+/// Represents a procedure call. The type parameter is the type of the value to be extracted from
+/// the server's response.
 #[derive(Clone)]
 pub struct CallHandle<T> {
     proc_call: krpc::ProcedureCall,
     _phantom: PhantomData<T>,
 }
 
+/// A handle to a stream. The type parameter is the type of the value produced by the stream.
 #[derive(Copy, Clone, Debug)]
 pub struct StreamHandle<T> {
     stream_id: StreamID,
     _phantom: PhantomData<T>,
 }
 
+/// A collection of updates received from the stream server.
 #[derive(Debug)]
 pub struct StreamUpdate {
     updates: HashMap<StreamID, krpc::ProcedureResult>,
@@ -83,6 +92,16 @@ macro_rules! batch_call_common {
     }};
 }
 
+/// Groups calls in a single packet. The return value is a tuple of `Result`s, one for each call.
+///
+/// # Example:
+/// ```rust,ignore
+///let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+///let (vessel, time) = batch_call!(&client, (
+///    &space_center::get_active_vessel(),
+///    &space_center::get_ut(),
+///))?;
+/// ```
 #[macro_export]
 macro_rules! batch_call {
     ($client:expr, ( $( $call:expr ),+ )) => {
@@ -94,6 +113,7 @@ macro_rules! batch_call {
 }
 
 
+/// Does the same as `batch_call` but unwraps all values automatically.
 #[macro_export]
 macro_rules! batch_call_unwrap {
     ($client:expr, ( $( $call:expr ),+ )) => {{
@@ -105,6 +125,12 @@ macro_rules! batch_call_unwrap {
 }
 
 
+/// Creates a stream request from a CallHandle. For less verbosity, you can use the `to_stream()`
+/// method on `CallHandle`s instead.
+///
+/// Note that types don't prevent you from chaining multiple `mk_stream`. This will build a stream
+/// request of a stream request. Turns out this is accepted by the RPC server and the author of
+/// this library confesses he had some fun with this.
 pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> CallHandle<StreamHandle<T>> {
     let mut arg = krpc::Argument::new();
     arg.set_position(0);
