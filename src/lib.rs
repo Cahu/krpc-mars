@@ -100,23 +100,17 @@ macro_rules! batch_call_common {
 /// ```
 #[macro_export]
 macro_rules! batch_call {
-    ($client:expr, ( $( $call:expr ),+ )) => {
-        batch_call_common!(|result| { result }, $client, ( $( $call ),+ ))
-    };
-    ($client:expr, ( $( $call:expr ),+ , )) => /* retry without last ';' */ {
-        batch_call!($client, ( $( $call ),+ ))
+    ($client:expr, ( $( $call:expr ),+ $(,)? )) => {
+        $crate::batch_call_common!(|result| { result }, $client, ( $( $call ),+ ))
     };
 }
 
 /// Does the same as `batch_call` but unwraps all values automatically.
 #[macro_export]
 macro_rules! batch_call_unwrap {
-    ($client:expr, ( $( $call:expr ),+ )) => {{
-        batch_call_common!(|result: $crate::error::Result<_>| { result.unwrap() }, $client, ( $( $call ),+ ))
+    ($client:expr, ( $( $call:expr ),+ $(,)? )) => {{
+        $crate::batch_call_common!(|result: $crate::error::Result<_>| { result.unwrap() }, $client, ( $( $call ),+ ))
     }};
-    ($client:expr, ( $( $call:expr ),+ , )) => /* retry without last ';' */ {
-        batch_call_unwrap!($client, ( $( $call ),+ ))
-    };
 }
 
 /// Creates a stream request from a CallHandle. For less verbosity, you can use the `to_stream()`
