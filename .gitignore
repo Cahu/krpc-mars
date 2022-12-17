@@ -1,9 +1,6 @@
 /target
-/src/protos
 **/*.rs.bk
+Cargo.lock
 
 # generated:
 src/krpc.rs
-
-# for testing:
-src/main.rs
