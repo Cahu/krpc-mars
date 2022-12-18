@@ -137,7 +137,7 @@ pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> CallHandle<S
 
 impl RPCClient {
     pub fn connect<A: ToSocketAddrs>(client_name: &str, addr: A) -> Result<Self> {
-        let mut sock = TcpStream::connect(addr).map_err(Error::Io)?;
+        let mut sock = TcpStream::connect(addr)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
         conn_req.set_field_type(krpc::ConnectionRequest_Type::RPC);
@@ -182,7 +182,7 @@ impl RPCClient {
 
 impl StreamClient {
     pub fn connect<A: ToSocketAddrs>(client: &RPCClient, addr: A) -> Result<Self> {
-        let mut sock = TcpStream::connect(addr).map_err(Error::Io)?;
+        let mut sock = TcpStream::connect(addr)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
         conn_req.set_field_type(krpc::ConnectionRequest_Type::STREAM);
