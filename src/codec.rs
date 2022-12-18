@@ -404,7 +404,7 @@ where
     M: protobuf::Message,
 {
     let mut input_stream = protobuf::CodedInputStream::new(sock);
-    protobuf::parse_length_delimited_from::<M>(&mut input_stream)
+    input_stream.read_message()
 }
 
 pub fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, Error>
