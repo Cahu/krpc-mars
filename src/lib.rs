@@ -1,11 +1,11 @@
-pub extern crate protobuf;
-use protobuf::Message;
-
 pub mod codec;
 pub mod error;
 pub mod krpc;
 use error::Error;
 use error::Result;
+
+pub use protobuf;
+use protobuf::Message;
 
 use std::collections::HashMap;
 use std::marker::PhantomData;

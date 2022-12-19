@@ -4,6 +4,7 @@ version = "0.8.0"
 authors = ["cahu"]
 build = "build.rs"
 license = "GPL-3.0"
+edition = "2021"
 
 [dependencies]
 protobuf = "2.0"

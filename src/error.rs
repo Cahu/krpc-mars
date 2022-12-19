@@ -1,4 +1,5 @@
-use krpc;
+use crate::krpc;
+
 use protobuf;
 
 #[non_exhaustive]

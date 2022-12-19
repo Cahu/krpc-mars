@@ -1,8 +1,9 @@
-use error::Error;
-use krpc;
+use crate::krpc;
 
 use protobuf;
 use protobuf::Message;
+
+use crate::Error;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
