@@ -143,12 +143,9 @@ impl RPCClient {
         conn_req.set_field_type(krpc::ConnectionRequest_Type::RPC);
         conn_req.set_client_name(client_name.to_string());
 
-        conn_req
-            .write_length_delimited_to_writer(&mut sock)
-            .map_err(Error::Protobuf)?;
+        conn_req.write_length_delimited_to_writer(&mut sock)?;
 
-        let mut response =
-            codec::read_message::<krpc::ConnectionResponse>(&mut sock).map_err(Error::Protobuf)?;
+        let mut response = codec::read_message::<krpc::ConnectionResponse>(&mut sock)?;
 
         match response.status {
             krpc::ConnectionResponse_Status::OK => Ok(RPCClient(Arc::new(RPCClient_ {
@@ -170,10 +167,9 @@ impl RPCClient {
     pub fn submit_request(&self, request: RPCRequest) -> Result<krpc::Response> {
         let raw_request = request.build();
         if let Ok(mut sock_guard) = self.0.sock.lock() {
-            raw_request
-                .write_length_delimited_to_writer(&mut *sock_guard)
-                .map_err(Error::Protobuf)?;
-            codec::read_message::<krpc::Response>(&mut *sock_guard).map_err(Error::Protobuf)
+            raw_request.write_length_delimited_to_writer(&mut *sock_guard)?;
+            let resp = codec::read_message::<krpc::Response>(&mut *sock_guard)?;
+            Ok(resp)
         } else {
             Err(Error::Synchro(String::from("Poisoned mutex")))
         }
@@ -188,12 +184,9 @@ impl StreamClient {
         conn_req.set_field_type(krpc::ConnectionRequest_Type::STREAM);
         conn_req.set_client_identifier(client.0.client_id.clone());
 
-        conn_req
-            .write_length_delimited_to_writer(&mut sock)
-            .map_err(Error::Protobuf)?;
+        conn_req.write_length_delimited_to_writer(&mut sock)?;
 
-        let mut response =
-            codec::read_message::<krpc::ConnectionResponse>(&mut sock).map_err(Error::Protobuf)?;
+        let mut response = codec::read_message::<krpc::ConnectionResponse>(&mut sock)?;
 
         match response.status {
             krpc::ConnectionResponse_Status::OK => Ok(StreamClient(Arc::new(StreamClient_ {
@@ -209,8 +202,7 @@ impl StreamClient {
     pub fn recv_update(&self) -> Result<StreamUpdate> {
         let updates;
         if let Ok(mut sock_guard) = self.0.sock.lock() {
-            updates = codec::read_message::<krpc::StreamUpdate>(&mut *sock_guard)
-                .map_err(Error::Protobuf)?;
+            updates = codec::read_message::<krpc::StreamUpdate>(&mut *sock_guard)?;
         } else {
             return Err(Error::Synchro(String::from("Poinsoned mutex")));
         }
