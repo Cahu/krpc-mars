@@ -355,8 +355,10 @@ where
         output: &mut protobuf::CodedOutputStream,
     ) -> Result<(), protobuf::ProtobufError> {
         let &(ref t, ref u) = self;
-        t.encode(output)?;
-        u.encode(output)?;
+        let mut tuple = krpc::Tuple::new();
+        tuple.mut_items().push(t.encode_to_bytes()?);
+        tuple.mut_items().push(u.encode_to_bytes()?);
+        tuple.write_to(output)?;
         Ok(())
     }
 }
@@ -372,9 +374,11 @@ where
         output: &mut protobuf::CodedOutputStream,
     ) -> Result<(), protobuf::ProtobufError> {
         let &(ref t, ref u, ref v) = self;
-        t.encode(output)?;
-        u.encode(output)?;
-        v.encode(output)?;
+        let mut tuple = krpc::Tuple::new();
+        tuple.mut_items().push(t.encode_to_bytes()?);
+        tuple.mut_items().push(u.encode_to_bytes()?);
+        tuple.mut_items().push(v.encode_to_bytes()?);
+        tuple.write_to(output)?;
         Ok(())
     }
 }
@@ -391,10 +395,12 @@ where
         output: &mut protobuf::CodedOutputStream,
     ) -> Result<(), protobuf::ProtobufError> {
         let &(ref t, ref u, ref v, ref w) = self;
-        t.encode(output)?;
-        u.encode(output)?;
-        v.encode(output)?;
-        w.encode(output)?;
+        let mut tuple = krpc::Tuple::new();
+        tuple.mut_items().push(t.encode_to_bytes()?);
+        tuple.mut_items().push(u.encode_to_bytes()?);
+        tuple.mut_items().push(v.encode_to_bytes()?);
+        tuple.mut_items().push(w.encode_to_bytes()?);
+        tuple.write_to(output)?;
         Ok(())
     }
 }
