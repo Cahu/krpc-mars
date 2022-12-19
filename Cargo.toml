@@ -1,5 +1,5 @@
 [package]
-name = "krpc_mars"
+name = "krpc-mars"
 version = "0.8.0"
 authors = ["cahu"]
 build = "build.rs"
