@@ -19,11 +19,6 @@ pub enum Error {
         status: krpc::ConnectionResponse_Status,
     },
 
-    /// A synchronization error. Mutexes are used to ensure that responses are not mixed together
-    /// so this should only be raised when one mutex is poisoned.
-    #[error("Sync errro: {0}")]
-    Synchro(String),
-
     /// A failure while performing IO.
     #[error(transparent)]
     Io(#[from] std::io::Error),

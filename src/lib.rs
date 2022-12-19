@@ -11,27 +11,19 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
-use std::sync::Arc;
-use std::sync::Mutex;
 
+/// A client to a RPC server.
 #[derive(Debug)]
-struct RPCClient_ {
-    sock: Mutex<TcpStream>, // We must ensure that no two write happen concurrently
+pub struct RPCClient {
+    sock: TcpStream,
     client_id: Vec<u8>,
 }
 
-/// A client to a RPC server.
-#[derive(Clone, Debug)]
-pub struct RPCClient(Arc<RPCClient_>);
-
-#[derive(Debug)]
-struct StreamClient_ {
-    sock: Mutex<TcpStream>,
-}
-
 /// A client to a Stream server.
-#[derive(Clone)]
-pub struct StreamClient(Arc<StreamClient_>);
+#[derive(Debug)]
+pub struct StreamClient {
+    sock: TcpStream,
+}
 
 type StreamID = u64;
 
@@ -148,10 +140,10 @@ impl RPCClient {
         let mut response = codec::read_message::<krpc::ConnectionResponse>(&mut sock)?;
 
         match response.status {
-            krpc::ConnectionResponse_Status::OK => Ok(RPCClient(Arc::new(RPCClient_ {
-                sock: Mutex::new(sock),
+            krpc::ConnectionResponse_Status::OK => Ok(RPCClient {
+                sock,
                 client_id: response.client_identifier,
-            }))),
+            }),
             s => Err(Error::RPCConnect {
                 error: response.take_message(),
                 status: s,
@@ -159,20 +151,16 @@ impl RPCClient {
         }
     }
 
-    pub fn mk_call<T: codec::RPCExtractable>(&self, call: &CallHandle<T>) -> Result<T> {
+    pub fn mk_call<T: codec::RPCExtractable>(&mut self, call: &CallHandle<T>) -> Result<T> {
         let (result,) = batch_call!(self, (call))?;
         result
     }
 
-    pub fn submit_request(&self, request: RPCRequest) -> Result<krpc::Response> {
+    pub fn submit_request(&mut self, request: RPCRequest) -> Result<krpc::Response> {
         let raw_request = request.build();
-        if let Ok(mut sock_guard) = self.0.sock.lock() {
-            raw_request.write_length_delimited_to_writer(&mut *sock_guard)?;
-            let resp = codec::read_message::<krpc::Response>(&mut *sock_guard)?;
-            Ok(resp)
-        } else {
-            Err(Error::Synchro(String::from("Poisoned mutex")))
-        }
+        raw_request.write_length_delimited_to_writer(&mut self.sock)?;
+        let resp = codec::read_message::<krpc::Response>(&mut self.sock)?;
+        Ok(resp)
     }
 }
 
@@ -182,16 +170,14 @@ impl StreamClient {
 
         let mut conn_req = krpc::ConnectionRequest::new();
         conn_req.set_field_type(krpc::ConnectionRequest_Type::STREAM);
-        conn_req.set_client_identifier(client.0.client_id.clone());
+        conn_req.set_client_identifier(client.client_id.clone());
 
         conn_req.write_length_delimited_to_writer(&mut sock)?;
 
         let mut response = codec::read_message::<krpc::ConnectionResponse>(&mut sock)?;
 
         match response.status {
-            krpc::ConnectionResponse_Status::OK => Ok(StreamClient(Arc::new(StreamClient_ {
-                sock: Mutex::new(sock),
-            }))),
+            krpc::ConnectionResponse_Status::OK => Ok(Self { sock }),
             s => Err(Error::StreamConnect {
                 error: response.take_message(),
                 status: s,
@@ -199,13 +185,8 @@ impl StreamClient {
         }
     }
 
-    pub fn recv_update(&self) -> Result<StreamUpdate> {
-        let updates;
-        if let Ok(mut sock_guard) = self.0.sock.lock() {
-            updates = codec::read_message::<krpc::StreamUpdate>(&mut *sock_guard)?;
-        } else {
-            return Err(Error::Synchro(String::from("Poinsoned mutex")));
-        }
+    pub fn recv_update(&mut self) -> Result<StreamUpdate> {
+        let updates = codec::read_message::<krpc::StreamUpdate>(&mut self.sock)?;
 
         let mut map = HashMap::new();
         for mut result in updates.results.into_iter() {
