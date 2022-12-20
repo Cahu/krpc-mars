@@ -406,7 +406,8 @@ where
     }
 }
 
-pub fn read_message<M>(sock: &mut dyn Read) -> Result<M, protobuf::ProtobufError>
+/// Reads a protobuf message from a source.
+pub(crate) fn read_message<M>(sock: &mut dyn Read) -> Result<M, protobuf::ProtobufError>
 where
     M: protobuf::Message,
 {
@@ -414,7 +415,8 @@ where
     input_stream.read_message()
 }
 
-pub fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, Error>
+/// Extracts the result from a [`krpc::ProcedureResult`]
+pub(crate) fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, Error>
 where
     T: RPCExtractable,
 {
