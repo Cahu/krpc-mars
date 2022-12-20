@@ -51,7 +51,7 @@ pub struct StreamHandle<T> {
 }
 
 /// A collection of updates received from the stream server.
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct StreamUpdate {
     updates: HashMap<StreamID, krpc::ProcedureResult>,
 }
@@ -276,5 +276,9 @@ impl StreamUpdate {
             .get(&handle.stream_id)
             .ok_or(Error::NoSuchStream)?;
         codec::extract_result(&result)
+    }
+
+    pub fn merge_with(&mut self, other: StreamUpdate) {
+        self.updates.extend(other.updates)
     }
 }
