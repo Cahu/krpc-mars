@@ -27,10 +27,10 @@ pub struct StreamClient {
 
 type StreamID = u64;
 
-#[doc(hidden)]
-/// Represents a request that can be submitted to the RPCServer. Library users should not have to
-/// use this object directly.
-#[derive(Clone)]
+/// Represents a request that can be submitted to the RPCServer. You should not have to use this
+/// directly. Use [`batch_call`], [`batch_call_unwrap`] or [`RPCClient::mk_call`] which provide a
+/// nicer API.
+#[derive(Clone, Default)]
 pub struct RPCRequest {
     calls: protobuf::RepeatedField<krpc::ProcedureCall>,
 }
@@ -60,7 +60,7 @@ pub struct StreamUpdate {
 #[macro_export]
 macro_rules! batch_call_common {
     ($process_result:expr, $client:expr, ( $( $call:expr ),+ )) => {{
-        let mut request = $crate::RPCRequest::new();
+        let mut request = $crate::RPCRequest::default();
         $( request.add_call($call); )+
         match $client.submit_request(request) {
             Err(e) => {
@@ -198,12 +198,6 @@ impl StreamClient {
 }
 
 impl RPCRequest {
-    pub fn new() -> Self {
-        RPCRequest {
-            calls: protobuf::RepeatedField::<krpc::ProcedureCall>::new(),
-        }
-    }
-
     pub fn add_call<T: codec::RPCExtractable>(&mut self, handle: &CallHandle<T>) {
         self.calls.push(handle.get_call().clone())
     }
