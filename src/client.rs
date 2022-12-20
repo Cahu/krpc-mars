@@ -68,10 +68,12 @@ where
         }
     }
 
+    /// Creates a streamed version of this call.
     pub fn to_stream(&self) -> CallHandle<StreamHandle<T>> {
         crate::stream::mk_stream(self)
     }
 
+    /// Extract the i-th result from a response.
     pub fn get_result(&self, resp: &RPCResponse, idx: usize) -> Result<T, error::RPCError> {
         codec::extract_result(&resp.results[idx])
     }
