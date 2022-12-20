@@ -1,44 +1,37 @@
 use crate::krpc;
 
-use protobuf;
-
-#[non_exhaustive]
+/// Errors that can occur while trying to connect to the KRPC server.
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// Raised when the connection to the RPC server fails.
-    #[error("Could not connect to the RPC server: {error} {status:?}")]
-    RPCConnect {
+pub enum ConnectionError {
+    /// Could not connect to the server
+    #[error(transparent)]
+    ConnectionFailed(#[from] std::io::Error),
+
+    /// Protobuf error when doing the handshake
+    #[error(transparent)]
+    ProtobufErr(#[from] protobuf::ProtobufError),
+
+    /// Server refused the connection
+    #[error("Connection refused by the server (status {status:?}): {error}")]
+    ConnectionRefused {
         error: String,
         status: krpc::ConnectionResponse_Status,
     },
-
-    /// Raised when the connection to the stream server fails.
-    #[error("Could not connect to the stream server: {error} {status:?}")]
-    StreamConnect {
-        error: String,
-        status: krpc::ConnectionResponse_Status,
-    },
-
-    /// A failure while performing IO.
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-
-    /// Raised when kRPC rejects a request
-    #[error("The RPC request failed: service={} procedure={} description={}", .0.get_service(), .0.get_name(), .0.get_description())]
-    Request(krpc::Error),
-
-    /// Raised when kRPC rejects a procedure call
-    #[error("The RPC failed: service={} procedure={} description={}", .0.get_service(), .0.get_name(), .0.get_description())]
-    Procedure(krpc::Error),
-
-    /// Serialization/deserialization error.
-    #[error(transparent)]
-    Protobuf(#[from] protobuf::ProtobufError),
-
-    /// Error returned when an attempt is made to extract a value from a stream with no result for
-    /// the given stream handle.
-    #[error("No such stream")]
-    NoSuchStream,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+/// Errors that can occur when performing an RPC.
+#[derive(Debug, thiserror::Error)]
+pub enum RPCError {
+    /// IO Error while sending/reading
+    #[error(transparent)]
+    IOErr(#[from] std::io::Error),
+    /// An error raised by the kRPC mod
+    #[error(
+        "The RPC request failed: service={} procedure={} description={}",
+        .0.get_service(), .0.get_name(), .0.get_description())
+    ]
+    KRPCRequestErr(krpc::Error),
+    /// Some protobuf error on the request/response level
+    #[error(transparent)]
+    ProtobufErr(#[from] protobuf::ProtobufError),
+}

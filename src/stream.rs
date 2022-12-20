@@ -1,10 +1,9 @@
 //! Client to the KRPC Stream server.
 use crate::codec;
+use crate::error;
 use crate::krpc;
 
 use crate::client::CallHandle;
-use crate::error::Error;
-use crate::error::Result;
 
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
@@ -85,7 +84,10 @@ pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> CallHandle<S
 
 impl StreamClient {
     /// Connect to the stream server associated with the given client.
-    pub fn connect<A: ToSocketAddrs>(client: &super::RPCClient, addr: A) -> Result<Self> {
+    pub fn connect<A: ToSocketAddrs>(
+        client: &super::RPCClient,
+        addr: A,
+    ) -> Result<Self, error::ConnectionError> {
         let mut sock = TcpStream::connect(addr)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
@@ -98,14 +100,14 @@ impl StreamClient {
 
         match response.status {
             krpc::ConnectionResponse_Status::OK => Ok(Self { sock }),
-            s => Err(Error::StreamConnect {
+            s => Err(error::ConnectionError::ConnectionRefused {
                 error: response.take_message(),
                 status: s,
             }),
         }
     }
 
-    pub fn recv_update(&mut self) -> Result<StreamUpdate> {
+    pub fn recv_update(&mut self) -> Result<StreamUpdate, error::RPCError> {
         let updates = codec::read_message::<krpc::StreamUpdate>(&mut self.sock)?;
 
         let mut map = HashMap::new();
@@ -124,15 +126,16 @@ pub struct StreamUpdate {
 }
 
 impl StreamUpdate {
-    pub fn get_result<T>(&self, handle: &StreamHandle<T>) -> Result<T>
+    pub fn get_result<T>(&self, handle: &StreamHandle<T>) -> Result<Option<T>, error::RPCError>
     where
         T: codec::RPCExtractable,
     {
-        let result = self
-            .updates
-            .get(&handle.stream_id)
-            .ok_or(Error::NoSuchStream)?;
-        codec::extract_result(&result)
+        if let Some(result) = self.updates.get(&handle.stream_id) {
+            let res = codec::extract_result(&result)?;
+            Ok(Some(res))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Merge two update objects. The Stream server doesn't update values that don't change, so

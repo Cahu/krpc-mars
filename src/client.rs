@@ -1,9 +1,8 @@
 //! Client for sending requests to the KRPC mod.
 use crate::codec;
+use crate::error;
 use crate::krpc;
 
-use crate::error::Error;
-use crate::error::Result;
 use crate::stream::StreamHandle;
 
 use std::net::TcpStream;
@@ -41,6 +40,12 @@ impl RPCRequest {
     }
 }
 
+/// A response from the RPC Server
+#[derive(Clone)]
+pub struct RPCResponse {
+    results: protobuf::RepeatedField<krpc::ProcedureResult>,
+}
+
 /// Represents a procedure call. The type parameter is the type of the value to be extracted from
 /// the server's response.
 #[derive(Clone)]
@@ -67,8 +72,8 @@ where
         crate::stream::mk_stream(self)
     }
 
-    pub fn get_result(&self, result: &krpc::ProcedureResult) -> Result<T> {
-        codec::extract_result(result)
+    pub fn get_result(&self, resp: &RPCResponse, idx: usize) -> Result<T, error::RPCError> {
+        codec::extract_result(&resp.results[idx])
     }
 
     pub(crate) fn get_call(&self) -> &krpc::ProcedureCall {
@@ -78,7 +83,10 @@ where
 
 impl RPCClient {
     /// Connects to the KRPC server. The client will show up in the KRPC UI with the given client name.
-    pub fn connect<A: ToSocketAddrs>(client_name: &str, addr: A) -> Result<Self> {
+    pub fn connect<A: ToSocketAddrs>(
+        client_name: &str,
+        addr: A,
+    ) -> Result<Self, error::ConnectionError> {
         let mut sock = TcpStream::connect(addr)?;
 
         let mut conn_req = krpc::ConnectionRequest::new();
@@ -94,7 +102,7 @@ impl RPCClient {
                 sock,
                 client_id: response.client_identifier,
             }),
-            s => Err(Error::RPCConnect {
+            s => Err(error::ConnectionError::ConnectionRefused {
                 error: response.take_message(),
                 status: s,
             }),
@@ -102,7 +110,10 @@ impl RPCClient {
     }
 
     /// Sends a single RPC request to the server.
-    pub fn mk_call<T: codec::RPCExtractable>(&mut self, call: &CallHandle<T>) -> Result<T> {
+    pub fn mk_call<T: codec::RPCExtractable>(
+        &mut self,
+        call: &CallHandle<T>,
+    ) -> Result<T, error::RPCError> {
         let (result,) = crate::batch_call!(self, (call))?;
         result
     }
@@ -110,10 +121,15 @@ impl RPCClient {
     /// Sends an [`RPCRequest`] to the server. A single RPCRequest may contain multiple RPC calls.
     /// It is recommended to use the [`batch_call!`](crate::batch_call) or
     /// [`batch_call_unwrap!`](crate::batch_call_unwrap) for one-off requests.
-    pub fn submit_request(&mut self, request: RPCRequest) -> Result<krpc::Response> {
+    pub fn submit_request(&mut self, request: RPCRequest) -> Result<RPCResponse, error::RPCError> {
         let raw_request = request.build();
         raw_request.write_length_delimited_to_writer(&mut self.sock)?;
-        let resp = codec::read_message::<krpc::Response>(&mut self.sock)?;
-        Ok(resp)
+        let mut resp = codec::read_message::<krpc::Response>(&mut self.sock)?;
+        if resp.has_error() {
+            Err(error::RPCError::KRPCRequestErr(resp.take_error()))
+        } else {
+            let results = resp.take_results();
+            Ok(RPCResponse { results })
+        }
     }
 }

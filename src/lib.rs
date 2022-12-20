@@ -23,13 +23,10 @@ macro_rules! batch_call_common {
             Err(e) => {
                 Err(e)
             }
-            Ok(ref mut response) if response.has_error() => {
-                Err($crate::error::Error::Request(response.take_error()))
-            }
             Ok(ref response) => {
                 let mut _i = 0;
                 Ok(( $({
-                        let result = $call.get_result(&response.results[_i]); _i += 1;
+                        let result = $call.get_result(response, _i); _i += 1;
                         $process_result(result)
                 },)+ ))
             }
@@ -58,6 +55,6 @@ macro_rules! batch_call {
 #[macro_export]
 macro_rules! batch_call_unwrap {
     ($client:expr, ( $( $call:expr ),+ $(,)? )) => {{
-        $crate::batch_call_common!(|result: $crate::error::Result<_>| { result.unwrap() }, $client, ( $( $call ),+ ))
+        $crate::batch_call_common!(|result: ::std::result::Result<_, _>| { result.unwrap() }, $client, ( $( $call ),+ ))
     }};
 }

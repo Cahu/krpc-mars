@@ -1,10 +1,10 @@
 //! Encoding and decoding of KRPC data types.
 use crate::krpc; // Generated from the protobuf file
 
+use crate::error;
+
 use protobuf;
 use protobuf::Message;
-
-use crate::error::Error;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -417,14 +417,17 @@ where
 }
 
 /// Extracts the result from a [`krpc::ProcedureResult`]
-pub(crate) fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, Error>
+pub(crate) fn extract_result<T>(proc_result: &krpc::ProcedureResult) -> Result<T, error::RPCError>
 where
     T: RPCExtractable,
 {
     if proc_result.has_error() {
-        Err(Error::Procedure(proc_result.get_error().clone()))
+        Err(error::RPCError::KRPCRequestErr(
+            proc_result.get_error().clone(),
+        ))
     } else {
         let mut input = protobuf::CodedInputStream::from_bytes(proc_result.get_value());
-        RPCExtractable::extract_value(&mut input).map_err(Error::Protobuf)
+        let res = RPCExtractable::extract_value(&mut input)?;
+        Ok(res)
     }
 }
