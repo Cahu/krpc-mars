@@ -12,14 +12,14 @@ use std::marker::PhantomData;
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
 
-/// A client to a RPC server.
+/// A client to the RPC server.
 #[derive(Debug)]
 pub struct RPCClient {
     sock: TcpStream,
     client_id: Vec<u8>,
 }
 
-/// A client to a Stream server.
+/// A client to the Stream server.
 #[derive(Debug)]
 pub struct StreamClient {
     sock: TcpStream,
@@ -27,9 +27,9 @@ pub struct StreamClient {
 
 type StreamID = u64;
 
-/// Represents a request that can be submitted to the RPCServer. You should not have to use this
-/// directly. Use [`batch_call`], [`batch_call_unwrap`] or [`RPCClient::mk_call`] which provide a
-/// nicer API.
+/// Represents a request that can be submitted to the RPCServer. This object is clonable so that
+/// you can perform the same request multiple times. For one-off requests, use [`batch_call`],
+/// [`batch_call_unwrap`] or [`RPCClient::mk_call`] which provide a nicer API.
 #[derive(Clone, Default)]
 pub struct RPCRequest {
     calls: protobuf::RepeatedField<krpc::ProcedureCall>,
@@ -97,7 +97,7 @@ macro_rules! batch_call {
     };
 }
 
-/// Does the same as `batch_call` but unwraps all values automatically.
+/// Does the same as [`batch_call`] but unwraps all values automatically.
 #[macro_export]
 macro_rules! batch_call_unwrap {
     ($client:expr, ( $( $call:expr ),+ $(,)? )) => {{
@@ -105,8 +105,8 @@ macro_rules! batch_call_unwrap {
     }};
 }
 
-/// Creates a stream request from a CallHandle. For less verbosity, you can use the `to_stream()`
-/// method on `CallHandle`s instead.
+/// Creates a stream request from a CallHandle. For less verbosity, you can use the
+/// [`CallHandle::to_stream`] instead.
 ///
 /// Note that types don't prevent you from chaining multiple `mk_stream`. This will build a stream
 /// request of a stream request. Turns out this is accepted by the RPC server and the author of
@@ -128,6 +128,7 @@ pub fn mk_stream<T: codec::RPCExtractable>(call: &CallHandle<T>) -> CallHandle<S
 }
 
 impl RPCClient {
+    /// Connects to the KRPC server. The client will show up in the KRPC UI with the given client name.
     pub fn connect<A: ToSocketAddrs>(client_name: &str, addr: A) -> Result<Self> {
         let mut sock = TcpStream::connect(addr)?;
 
@@ -151,11 +152,15 @@ impl RPCClient {
         }
     }
 
+    /// Sends a single RPC request to the server.
     pub fn mk_call<T: codec::RPCExtractable>(&mut self, call: &CallHandle<T>) -> Result<T> {
         let (result,) = batch_call!(self, (call))?;
         result
     }
 
+    /// Sends an [`RPCRequest`] to the server. A single RPCRequest may contain multiple RPC calls.
+    /// It is recommended to use the [`batch_call`] or [`batch_call_unwrap`] for one-off
+    /// requests.
     pub fn submit_request(&mut self, request: RPCRequest) -> Result<krpc::Response> {
         let raw_request = request.build();
         raw_request.write_length_delimited_to_writer(&mut self.sock)?;
@@ -213,6 +218,9 @@ impl<T> CallHandle<T>
 where
     T: codec::RPCExtractable,
 {
+    #[doc(hidden)]
+    /// Creates a new CallHandle. The function is public so that the generated code from
+    /// krpc-mars-terraformer can use it but it is hidden from user docs.
     pub fn new(proc_call: krpc::ProcedureCall) -> Self {
         CallHandle {
             proc_call,
@@ -234,6 +242,9 @@ where
 }
 
 impl<T> StreamHandle<T> {
+    #[doc(hidden)]
+    /// Creates a new StreamHande. The function is public so that the generated code from
+    /// krpc-mars-terraformer can use it but it is hidden from user docs.
     pub fn new(stream_id: StreamID) -> Self {
         StreamHandle {
             stream_id,
@@ -241,6 +252,7 @@ impl<T> StreamHandle<T> {
         }
     }
 
+    /// Creates an RPC request that will remove this stream.
     pub fn remove(self) -> CallHandle<()> {
         use codec::RPCEncodable;
 
@@ -272,6 +284,8 @@ impl StreamUpdate {
         codec::extract_result(&result)
     }
 
+    /// Merge two update objects. The Stream server doesn't update values that don't change, so
+    /// this can be used to retain previous values of streams.
     pub fn merge_with(&mut self, other: StreamUpdate) {
         self.updates.extend(other.updates)
     }

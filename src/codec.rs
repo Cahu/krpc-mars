@@ -1,4 +1,5 @@
-use crate::krpc;
+//! Encoding and decoding of KRPC data types.
+use crate::krpc; // Generated from the protobuf file
 
 use protobuf;
 use protobuf::Message;
