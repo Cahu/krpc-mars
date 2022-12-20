@@ -4,7 +4,7 @@ use crate::krpc; // Generated from the protobuf file
 use protobuf;
 use protobuf::Message;
 
-use crate::Error;
+use crate::error::Error;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -89,7 +89,7 @@ impl RPCExtractable for String {
     }
 }
 
-impl<T> RPCExtractable for super::StreamHandle<T>
+impl<T> RPCExtractable for crate::stream::StreamHandle<T>
 where
     T: RPCExtractable,
 {
@@ -98,7 +98,7 @@ where
     ) -> Result<Self, protobuf::ProtobufError> {
         let mut stream = krpc::Stream::new();
         stream.merge_from(input)?;
-        Ok(super::StreamHandle::new(stream.id))
+        Ok(crate::stream::StreamHandle::new(stream.id))
     }
 }
 
