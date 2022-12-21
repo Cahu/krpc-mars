@@ -1,12 +1,14 @@
 [package]
-name = "krpc_mars"
-version = "0.7.0"
+name = "krpc-mars"
+version = "0.8.0"
 authors = ["cahu"]
 build = "build.rs"
 license = "GPL-3.0"
+edition = "2021"
 
 [dependencies]
 protobuf = "2.0"
+thiserror = "1"
 
 [build-dependencies]
 protoc-rust = "2.0"
