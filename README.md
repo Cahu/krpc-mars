@@ -79,6 +79,30 @@ We're good. Let's compile !
 
     $ cargo build
 
+The project structure should look something like this:
+
+    .
+    ├── build.rs
+    ├── Cargo.lock
+    ├── Cargo.toml
+    ├── services
+    │   ├── KRPC.Drawing.json
+    │   ├── KRPC.InfernalRobotics.json
+    │   ├── KRPC.KerbalAlarmClock.json
+    │   ├── KRPC.RemoteTech.json
+    │   ├── KRPC.SpaceCenter.json
+    │   └── KRPC.UI.json
+    └── src
+        ├── main.rs
+        └── services
+            ├── drawing.rs
+            ├── infernal_robotics.rs
+            ├── kerbal_alarm_clock.rs
+            ├── mod.rs
+            ├── remote_tech.rs
+            ├── space_center.rs
+            └── ui.rs
+
 Let's have some documentation too !
 
     $ cargo doc --open
