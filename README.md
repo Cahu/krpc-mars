@@ -24,29 +24,36 @@ want to use. Put these files in some directory within your project.
 
     $ cd betterjeb
     $ mkdir services
-    $ cp ~/games/KSP/game/GameData/kRPC/KRPC.*.json services/
+    $ cp /path/to/KSP/game/GameData/kRPC/KRPC.*.json services/
 
 Since these service files are likely to change often, the point of this step is
 to be able to use a new version of the kRPC mod without updating `krpc-mars`.
+
+Let's also create the destination directory for the generated file:
+
+    $ mkdir src/services/
 
 We now need to write a `build.rs` script to instruct cargo to generate the
 files before building our project :
 
 ```rust
 // FILE: build.rs
-extern crate glob;
-extern crate krpc_mars_terraformer;
-
 fn main() {
-	// Tell cargo to re-run this script only when json files in services/
-	// have changed. You can choose to omit this step if you want to
-	// re-generate services every time.
-	for path in glob::glob("services/*.json").unwrap().filter_map(Result::ok) {
-		println!("cargo:rerun-if-changed={}", path.display());
-	}
+    let paths: Vec<_> = glob::glob("./services/*.json")
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
 
-	krpc_mars_terraformer::run("services/", "src/")
-		.expect("Could not terraform Mars :(");
+    // Tell cargo to re-run this script only when json files in services/
+    // have changed. You can choose to omit this step if you want to
+    // re-generate services every time.
+    for path in &paths {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+
+    // Generate Rust code and place the output in the src/services/.
+    // !! ACHTUNG !! Make sure you use an empty directory or your files may be overwritten.
+    krpc_mars_terraformer::run(&paths, "./src/services/").expect("Could not terraform Mars");
 }
 ```
 
@@ -56,28 +63,17 @@ List dependencies in the `Cargo.toml` file :
 [package]
 name = "betterjeb"
 version = "0.1.0"
-authors = ["Jeb"]
+edition = "2021"
 
 [dependencies]
-krpc_mars = { git = ... }
+krpc-mars = { git = ... }
 
 [build-dependencies]
-glob = "*"
-krpc_mars_terraformer = { git = ... }
+glob = "0.3"
+krpc-mars-terraformer = { git = ... }
 ```
 
 The last step is to list all generated services in `src/lib.rs` :
-
-```rust
-// FILE: lib.rs
-extern crate krpc_mars; // don't forget this
-pub mod drawing;
-pub mod infernal_robotics;
-pub mod kerbal_alarm_clock;
-pub mod remote_tech;
-pub mod space_center;
-pub mod ui;
-```
 
 We're good. Let's compile !
 
@@ -95,15 +91,11 @@ Let's have some documentation too !
 Here is a basic example using RPCs from the SpaceCenter service:
 
 ```rust
-extern crate betterjeb;
-use betterjeb::*;
+mod services; // Generated files are here
+use services::space_center;
 
-extern crate krpc_mars;
-
-extern crate failure;
-
-fn main() -> Result<(), failure::Error> {
-    let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
 
     let vessel = client.mk_call(&space_center::get_active_vessel())?;
     println!("Active vessel: {:?}", vessel);
@@ -130,23 +122,25 @@ You can also group RPCs in batches, meaning multiple calls will be grouped in a
 single packet. For instance:
 
 ```rust
-let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+let mut client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
 
-let (vessel, time) = batch_call!(&client, (
-    &space_center::get_active_vessel(),
-    &space_center::get_ut(),
-))?;
+let (vessel, time) = krpc_mars::batch_call!(
+    &mut client,
+    (&space_center::get_active_vessel(), &space_center::get_ut(),)
+)?;
 
 let time = time?;
 let vessel = vessel?;
 
 println!("Current time: {}, Vessel: {:?}", time, vessel);
 
-let (crew, _, _) = batch_call!(&client, (
-    &vessel.get_crew(),
-    &vessel.set_type(space_center::VesselType::Probe),
-    &ui::message("Vessel type set to 'Probe'!".to_string(), 5f32, ui::MessagePosition::TopCenter),
-))?;
+let (crew, _) = krpc_mars::batch_call!(
+    &mut client,
+    (
+        &vessel.get_crew(),
+        &vessel.set_type(space_center::VesselType::Probe),
+    )
+)?;
 
 println!("Crew: {:?}", crew?);
 ```
@@ -162,35 +156,43 @@ this particular RPC from a `StreamUpdate` you obtained by calling
 `recv_update()` on the stream client.
 
 ```rust
-let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
-let stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")?;
+let mut client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+let mut stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")?;
 
 let ut_stream_handle = client.mk_call(&space_center::get_ut().to_stream())?;
 
 loop {
     let update = stream_client.recv_update()?;
-    let ut_result = update.get_result(&ut_stream_handle)?;
-    println!("ut: {}", ut_result);
+
+    // Streams don't update values when there's no change. The result is therefore an Option.
+    if let Some(ut_result) = update.get_result(&ut_stream_handle)? {
+        println!("ut: {}", ut_result);
+    }
 }
 ```
 
 Of course, you can also create a stream using batches :
 
 ```rust
-let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
-let stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")?;
+let mut client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+let mut stream_client = krpc_mars::StreamClient::connect(&client, "127.0.0.1:50001")?;
 
-let (vessel, ut_stream_handle) = batch_call_unwrap!(&client, (
-    &space_center::get_active_vessel(),
-    &space_center::get_ut().to_stream(),
-))?;
+let (vessel, ut_stream_handle) = krpc_mars::batch_call_unwrap!(
+    &mut client,
+    (
+        &space_center::get_active_vessel(),
+        &space_center::get_ut().to_stream(),
+    )
+)?;
 
 println!("Current vessel: {:?}", vessel);
 
 loop {
     let update = stream_client.recv_update()?;
-    let ut_result = update.get_result(&ut_stream_handle)?;
-    println!("ut: {}", ut_result);
+
+    if let Some(ut_result) = update.get_result(&ut_stream_handle)? {
+        println!("ut: {}", ut_result);
+    }
 }
 ```
 
