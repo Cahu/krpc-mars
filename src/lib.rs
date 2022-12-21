@@ -1,3 +1,8 @@
+//! A client for [kRPC](https://github.com/krpc/krpc) (Kerbal Remote Procedure Call), a mod for
+//! Kerbal Space Program which allows to control the game programmatically.
+//!
+//! This library is meant to be used with the `krpc-mars-terraformer` crate to generate Rust code
+//! for procedures made available by the kRPC mode.
 pub mod client;
 pub use client::RPCClient;
 pub use client::RPCRequest;
@@ -38,8 +43,8 @@ macro_rules! batch_call_common {
 ///
 /// # Example:
 /// ```rust,ignore
-///let client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
-///let (vessel, time) = batch_call!(&client, (
+///let mut client = krpc_mars::RPCClient::connect("Example", "127.0.0.1:50000")?;
+///let (vessel, time) = batch_call!(&mut client, (
 ///    &space_center::get_active_vessel(),
 ///    &space_center::get_ut(),
 ///))?;
